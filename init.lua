@@ -1,121 +1,164 @@
--- This mod provides a selection of window frames from different materials
--- They are used by "snapping" a frame to a glass pane, and the frame is positioned 
--- propely due to model having an offset
+-- si_frames/init.lua
+-- Add a wooden frame over windows
+-- Copyright (C) 2018-2019  Hans von Smacker
+-- Copyright (C) 2024  1F616EMO
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 
-local materials = {
-	["wood"] = "default",
-	["junglewood"] = "default",
-	["pine_wood"] = "default",
-	["acacia_wood"] = "default",
-	["aspen_wood"] = "default",
-	["maple_wood"] = "maple",
-	["banana_wood"] = "ethereal",
-	["birch_wood"] = "ethereal",
-	["frost_wood"] = "ethereal",
-	["palm_wood"] = "ethereal",
-	["willow_wood"] = "ethereal",
-	["yellow_wood"] = "ethereal",
-	["redwood_wood"] = "ethereal",
-	["olive_wood"] = "ethereal",
-	["sakura_wood"] = "ethereal",
+local S = minetest.get_translator("si_frames")
+local NS = function(s) return s end
+local nodes = minetest.registered_nodes
+
+---@class si_frames
+si_frames = {}
+
+local type_of_frames = {
+    wfs = {
+        name = NS("Simple Wooden Frame (@1)"),
+        model = "si_frame_simple.obj",
+        craft = function(materieal)
+            return {
+                { "group:stick", "group:stick", "group:stick" },
+                { "group:stick", materieal,     "group:stick" },
+                { "group:stick", "group:stick", "group:stick" }
+            }
+        end,
+    },
+    wfq = {
+        name = NS("Quartered Window Frame (@1)"),
+        model = "si_frame_quartered.obj",
+        craft = function(materieal)
+            return {
+                { "",              "default:stick", "" },
+                { "default:stick", materieal,       "default:stick" },
+                { "",              "default:stick", "" }
+            }
+        end,
+    },
+    wfqd = {
+        name = NS("Quartered (Diagonal) Window Frame (@1)"),
+        model = "si_frame_quartered_diagonal.obj",
+        craft = function(materieal)
+            return {
+                { "group:stick", "",        "group:stick" },
+                { "",            materieal, "" },
+                { "group:stick", "",        "group:stick" }
+            }
+        end,
+    },
+    wfr = {
+        name = NS("Rhombus Window Frame (@1)"),
+        model = "si_frame_rhombus2.obj",
+        craft = function(materieal)
+            return {
+                { "",            "group:stick", "group:stick" },
+                { "",            materieal,     "" },
+                { "group:stick", "group:stick", "" }
+            }
+        end,
+    },
 }
 
-
-local frametypes = {
-	{
-		name = "Simple window frame", 
-		node = "wfs", 
-		model = "si_frame_simple.obj",
-		howto = {
-				{"default:stick", "default:stick", "default:stick"},
-				{"default:stick", "%MATERIAL%", "default:stick"},
-				{"default:stick", "default:stick", "default:stick"}
-			}
-      },
-	{
-		name = "Quartered window frame", 
-		node = "wfq", 
-		model = "si_frame_quartered.obj",
-		howto = {
-				{"", "default:stick", ""},
-				{"default:stick", "%MATERIAL%", "default:stick"},
-				{"", "default:stick", ""}
-			}
-      },
-	{
-		name = "Quartered (diagonal) window frame", 
-		node = "wfqd", 
-		model = "si_frame_quartered_diagonal.obj",
-		howto = {
-				{"default:stick", "", "default:stick"},
-				{"", "%MATERIAL%", ""},
-				{"default:stick", "", "default:stick"}
-			}
-      },
-      {
-		name = "Rhombus window frame", 
-		node = "wfr", 
-		model = "si_frame_rhombus2.obj",
-		howto = {
-				{"", "default:stick", "default:stick"},
-				{"", "%MATERIAL%", ""},
-				{"default:stick", "default:stick", ""}
-			}
-      },
+local node_box = {
+    type = "fixed",
+    fixed = {
+        { -0.4, -0.45, 0.4, 0.4, 0.4, 0.5 }
+    },
 }
 
+local keep_groups = {
+    -- General groups
+    "not_in_creative_inventory",
 
+    -- Minetest Game dig groups
+    "crumby", "cracky", "snappy", "choppy", "fleshy", "explody", "oddly_breakable_by_hand", "dig_immediate",
 
-for material, modname in pairs(materials) do
-	
-	if minetest.get_modpath(modname) then
-		
-		local nodedef = minetest.registered_nodes[modname .. ":" .. material]
-		
-		if nodedef then
-		
-			local texture = nodedef.tiles[1]
-		
-			if texture then
-				
-				for _,f in ipairs(frametypes) do
-					
-					local nodename = "si_frames:" .. f.node .. "_" .. material
-					
-					minetest.register_node (nodename, {
-						description = f.name .. " (" .. material .. ")",
-						drawtype = "mesh",
-						mesh = f.model,
-						tiles = {texture},
-						inventory_image = "(" .. texture .. "^" .. f.node .. ".png^of.png)^[makealpha:0,0,0",
-						wield_image = texture .. "^" .. f.node .. ".png",
-						paramtype = "light",
-						paramtype2 = "facedir",
-						is_ground_content = false,
-						sunlight_propagates = true,
-						groups = {choppy=1, snappy=1, oddly_breakable_by_hand=1 },
-						sounds = default.node_sound_stone_defaults(),
-						walkable = false,
-						selection_box = { type = "fixed",
-									fixed = {{-0.4, -0.45, 0.4, 0.4, 0.4, 0.5}}
-									},
-						collisionbox = {{-0.4, -0.45, 0.4, 0.4, 0.4, 0.5}},
-					})
-					
-					if f.howto[2][2] == "%MATERIAL%" then
-						f.howto[2][2] = modname .. ":" .. material
-						minetest.register_craft({
-							output = nodename,
-							recipe = f.howto
-						})
-						f.howto[2][2] = "%MATERIAL%"
-					else
-						minetest.log("error", "Wrong recipe template for " .. nodename)
-						minetest.log("error", "--> " .. f.howto[2][2])
-					end
+    -- MineClone2 dig groups
+    "pickaxey", "axey", "shovely", "swordly", "shearsy", "handy", "creative_breakable",
 
-				end
-			end
-		end
-	end
+    -- MineClone2 interaction groups
+    "flammable", "fire_encouragement", "fire_flammability",
+}
+local function prepare_groups(groups)
+    if not groups then return {} end
+
+    local rtn = {}
+    for _, key in ipairs(keep_groups) do
+        rtn[key] = groups[key]
+    end
+    return rtn
+end
+
+---Register all type of frames for a node
+function si_frames.register_frames(name, def)
+    if not def then def = {} end
+
+    def.tiles = { def.texture }
+    def.drawtype = "mesh"
+    def.paramtype = "light"
+    def.paramtype2 = "facedir"
+    def.is_ground_content = false
+    def.sunlight_propagates = true
+    def.walkable = false
+    def.selection_box = node_box
+    def.collisionbox = node_box
+
+    for variant, variant_def in pairs(type_of_frames) do
+        local vdef = table.copy(def)
+        vdef.description = S(variant_def.name, def.description or name)
+        vdef.mesh = variant_def.model
+        -- FIXME: Hand display texture is still broken
+        vdef.inventory_image = "(si_frames_of.png^" .. def.texture .. ")^[mask:si_frames_" .. variant .. ".png"
+        vdef.wield_image = def.texture .. "^si_frames_" .. variant .. ".png"
+        minetest.register_node("si_frames:" .. variant .. "_" .. name, vdef)
+
+        minetest.register_craft({
+            output = "si_frames:" .. variant .. "_" .. name,
+            recipe = variant_def.craft(def.materieal)
+        })
+    end
+end
+
+local function prepare_def(node, rotate)
+    return {
+        description = nodes[node].description,
+        texture = nodes[node].tiles[1] .. (rotate and "^[transform1" or ""),
+        groups = prepare_groups(nodes[node].groups),
+        sounds = nodes[node].sounds,
+        materieal = node,
+    }
+end
+
+if minetest.get_modpath("default") then
+    si_frames.register_frames("wood", prepare_def("default:wood"))
+    si_frames.register_frames("junglewood", prepare_def("default:junglewood"))
+    si_frames.register_frames("pine_wood", prepare_def("default:pine_wood"))
+    si_frames.register_frames("acacia_wood", prepare_def("default:acacia_wood"))
+    si_frames.register_frames("aspen_wood", prepare_def("default:aspen_wood"))
+end
+
+if minetest.get_modpath("maple") then
+    si_frames.register_frames("maple_wood", prepare_def("maple:maple_wood"))
+end
+
+if minetest.get_modpath("ethereal") then
+    si_frames.register_frames("basandra_wood", prepare_def("ethereal:basandra_wood"))
+    si_frames.register_frames("sakura_wood", prepare_def("ethereal:sakura_wood", true))
+    si_frames.register_frames("willow_wood", prepare_def("ethereal:willow_wood"))
+    si_frames.register_frames("redwood_wood", prepare_def("ethereal:redwood_wood"))
+    si_frames.register_frames("frost_wood", prepare_def("ethereal:frost_wood"))
+    si_frames.register_frames("yellow_wood", prepare_def("ethereal:yellow_wood"))
+    si_frames.register_frames("palm_wood", prepare_def("ethereal:palm_wood"))
+    si_frames.register_frames("banana_wood", prepare_def("ethereal:banana_wood"))
+    si_frames.register_frames("birch_wood", prepare_def("ethereal:birch_wood"))
+    si_frames.register_frames("olive_wood", prepare_def("ethereal:olive_wood"))
+    si_frames.register_frames("bamboo_block", prepare_def("ethereal:bamboo_block", true))
+end
+
+if minetest.get_modpath("mcl_core") then
+    si_frames.register_frames("wood", prepare_def("mcl_core:wood"))
+    si_frames.register_frames("darkwood", prepare_def("mcl_core:darkwood"))
+    si_frames.register_frames("junglewood", prepare_def("mcl_core:junglewood"))
+    si_frames.register_frames("sprucewood", prepare_def("mcl_core:sprucewood"))
+    si_frames.register_frames("acaciawood", prepare_def("mcl_core:acaciawood"))
+    si_frames.register_frames("birchwood", prepare_def("mcl_core:birchwood"))
 end
